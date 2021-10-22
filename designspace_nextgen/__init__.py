@@ -5,7 +5,7 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Optional, Union
 
 import fontTools.misc.plistlib
 import fontTools.varLib.models
@@ -17,6 +17,9 @@ LOGGER = logging.getLogger(__name__)
 
 Location = dict[str, Union[float, tuple[float, float]]]
 # IsotropicLocation from axes?
+
+# TODO: Remove after fontTools.varLib.models is typed.
+PiecewiseRemap = Callable[[float, Mapping[float, float]], float]
 
 # TODO: label_names, localised_... -> use to store _all_ names and provide properties
 # for the default "en" ones? Simplifies writing?
@@ -38,7 +41,7 @@ class Document:
     rules_processing_last: bool = field(default=False)
     lib: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.axes:
             raise Error(f"A Designspace must have at least one axis.")
 
@@ -77,7 +80,7 @@ class Document:
         document.path = path
         return document
 
-    def save(self, path: Optional[os.PathLike[str]] = None):
+    def save(self, path: Optional[os.PathLike[str]] = None) -> None:
         if path is None:
             if self.path is None:
                 raise Error("Document has no known path and no path was given.")
@@ -97,7 +100,7 @@ class Document:
             _write_lib(self.lib, root)
 
             tree = ElementTree.ElementTree(root)
-            tree.write(  # type: ignore
+            tree.write(
                 os.fspath(path),
                 encoding="UTF-8",
                 method="xml",
@@ -148,20 +151,20 @@ class Axis:
     hidden: bool = False
     mapping: dict[float, float] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.tag is not None and len(self.tag) != 4:
             raise Error(f"An axis tag must consist of 4 characters.")
 
     def map_forward(self, value: float) -> float:
         if self.mapping:
-            return fontTools.varLib.models.piecewiseLinearMap(value, self.mapping)
+            remap: PiecewiseRemap = fontTools.varLib.models.piecewiseLinearMap
+            return remap(value, self.mapping)
         return value
 
     def map_backward(self, value: float) -> float:
         if self.mapping:
-            return fontTools.varLib.models.piecewiseLinearMap(
-                value, {v: k for k, v in self.mapping}
-            )
+            remap: PiecewiseRemap = fontTools.varLib.models.piecewiseLinearMap
+            return remap(value, {v: k for k, v in self.mapping.items()})
         return value
 
 
@@ -200,7 +203,7 @@ class Rule:
     condition_sets: list["ConditionSet"]
     substitutions: dict[str, str]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.condition_sets:
             raise Error(f"Rule '{self.name}': Must have at least one condition set.")
         if not self.substitutions:
@@ -257,7 +260,7 @@ class Condition:
     minimum: Optional[float] = None  # None implies -infinity.
     maximum: Optional[float] = None  # None implies +infinity.
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.minimum is None and self.maximum is None:
             raise Error(
                 f"Condition '{self.name}': either minimum, maximum or both must be set."
@@ -684,7 +687,7 @@ def _write_sources(
 
 def _write_location(
     location: Location, default_location: Location, root: ElementTree.Element
-):
+) -> None:
     # Use the default location as a template and fill in the instance dimension values
     # whose axis names we know. Silently drop ones we don't know.
     location = {

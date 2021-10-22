@@ -12,6 +12,7 @@ fonttools = "^4.27"
 [tool.poetry.dev-dependencies]
 black = "*"
 pytest = "^6.2"
+mypy = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
