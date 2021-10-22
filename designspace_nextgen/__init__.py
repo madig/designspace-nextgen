@@ -113,7 +113,7 @@ class Document:
     def default_design_location(self) -> Location:
         return {axis.name: axis.map_forward(axis.default) for axis in self.axes}
 
-    def default_source(self) -> Optional["Source"]:
+    def default_source(self) -> Optional[Source]:
         default_location = self.default_design_location()
         default_sources = [s for s in self.sources if s.location == default_location]
         if not default_sources:
@@ -296,8 +296,8 @@ def _read_axes(tree: ElementTree.Element) -> tuple[list[Axis], Mapping[str, floa
             "the <axes> element."
         )
 
-    axes = []
-    default_location = {}
+    axes: list[Axis] = []
+    default_location: dict[str, float] = {}
     for index, element in enumerate(tree.findall(".axes/axis")):
         attributes = element.attrib
 
@@ -356,7 +356,7 @@ def _read_rules(tree: ElementTree.Element) -> tuple[list[Rule], bool]:
             )
         rules_processing_last = processing == "last"
 
-    rules = []
+    rules: list[Rule] = []
     for index, element in enumerate(tree.findall(".rules/rule")):
         name = element.attrib.get("name")
         if name is None:
@@ -365,7 +365,7 @@ def _read_rules(tree: ElementTree.Element) -> tuple[list[Rule], bool]:
             )
 
         # read any stray conditions outside a condition set
-        condition_sets = []
+        condition_sets: list[ConditionSet] = []
         conditions_external = _read_conditions(element, name)
         if conditions_external:
             condition_sets.append(ConditionSet(conditions_external))
@@ -390,7 +390,7 @@ def _read_rules(tree: ElementTree.Element) -> tuple[list[Rule], bool]:
 
 
 def _read_conditions(parent: ElementTree.Element, rule_name: str) -> list[Condition]:
-    conditions = []
+    conditions: list[Condition] = []
 
     for element in parent.findall(".condition"):
         attributes = element.attrib
@@ -421,7 +421,7 @@ def _read_conditions(parent: ElementTree.Element, rule_name: str) -> list[Condit
 def _read_sources(
     tree: ElementTree.Element, default_location: Mapping[str, float]
 ) -> list[Source]:
-    sources = []
+    sources: list[Source] = []
 
     for index, element in enumerate(tree.findall(".sources/source")):
         attributes = element.attrib
@@ -488,7 +488,7 @@ def _read_location(
 def _read_instances(
     tree: ElementTree.Element, default_location: Mapping[str, float]
 ) -> list[Instance]:
-    instances = []
+    instances: list[Instance] = []
 
     for index, instance_element in enumerate(tree.findall(".instances/instance")):
         attributes = instance_element.attrib
