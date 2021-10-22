@@ -44,11 +44,14 @@ class Document:
     def __post_init__(self) -> None:
         if not self.axes:
             raise Error(f"A Designspace must have at least one axis.")
-
-    # TODO: a validate() method that raises on consistency problems? Could be used
-    # after load and before save, so check internals only once. Would make post_init
-    # obsolete?
-    # TODO: error on instance filename matching source filename?
+        source_filenames: set[Path] = set(
+            s.filename for s in self.sources if s.filename is not None
+        )
+        for instance in self.instances:
+            if instance.filename is not None and instance.filename in source_filenames:
+                raise Error(
+                    f"Instance '{instance.name}' has a file name identical to a source: {instance.filename}"
+                )
 
     @classmethod
     def from_bytes(cls, content: bytes, path: Optional[Path] = None) -> Document:
@@ -275,6 +278,7 @@ class Condition:
             return False
         if isinstance(value, tuple):
             raise Error(f"Cannot evaluate rules for anisotropic locations: {value}")
+        # TODO: Use infinity directly in class init?
         minimum = self.minimum or -math.inf
         maximum = self.maximum or math.inf
         return minimum <= value <= maximum
