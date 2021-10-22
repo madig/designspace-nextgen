@@ -29,7 +29,7 @@ class Error(Exception):
     """Base exception."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class Document:
     axes: list[Axis]
     rules: list[Rule] = field(default_factory=list)
@@ -51,7 +51,7 @@ class Document:
     # TODO: error on instance filename matching source filename?
 
     @classmethod
-    def from_bytes(cls, content: bytes) -> Document:
+    def from_bytes(cls, content: bytes, path: Optional[Path] = None) -> Document:
         root = ElementTree.fromstring(content)
 
         axes, default_location = _read_axes(root)
@@ -67,17 +67,17 @@ class Document:
             sources=sources,
             instances=instances,
             lib=lib,
+            path=path,
         )
 
     @classmethod
     def from_file(cls, path: os.PathLike[str]) -> Document:
         path = Path(path)
         try:
-            document = cls.from_bytes(path.read_bytes())
+            document = cls.from_bytes(path.read_bytes(), path)
         except Exception as e:
             raise Error(f"Failed to read Designspace from '{path}': {str(e)}") from e
 
-        document.path = path
         return document
 
     def save(self, path: Optional[os.PathLike[str]] = None) -> None:
@@ -140,7 +140,7 @@ class Document:
         return swaps
 
 
-@dataclass
+@dataclass(frozen=True)
 class Axis:
     name: str  # name of the axis used in locations
     minimum: float
@@ -168,7 +168,7 @@ class Axis:
         return value
 
 
-@dataclass
+@dataclass(frozen=True)
 class Source:
     name: str
     filename: Optional[Path] = None
@@ -179,7 +179,7 @@ class Source:
     style_name: Optional[str] = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Instance:
     name: str
     filename: Optional[Path] = None
@@ -197,7 +197,7 @@ class Instance:
     lib: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Rule:
     name: str
     condition_sets: list["ConditionSet"]
@@ -241,7 +241,7 @@ class Rule:
         return swaps
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConditionSet:
     conditions: list["Condition"]
 
@@ -254,7 +254,7 @@ class ConditionSet:
         return all(c.applies_to(location) for c in self.conditions)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Condition:
     name: str  # Axis name the condition applies to.
     minimum: Optional[float] = None  # None implies -infinity.
