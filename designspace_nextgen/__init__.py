@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -121,6 +122,20 @@ class Document:
             f"{', '.join(s.name for s in default_sources)}"
         )
 
+    def evaluate_rules(
+        self, location: Location, glyph_names: set[str]
+    ) -> list[tuple[str, str]]:
+        """Applies substitution rules to glyphs at location, returning a list of
+        old to new name tuples, in the order of the rules.
+
+        Raises an error if a substitution references a glyph not in `glyph_names`.
+        """
+
+        swaps: list[tuple[str, str]] = []
+        for rule in self.rules:
+            swaps.extend(rule.evaluate(location, glyph_names))
+        return swaps
+
 
 @dataclass
 class Axis:
@@ -133,19 +148,21 @@ class Axis:
     hidden: bool = False
     mapping: dict[float, float] = field(default_factory=dict)
 
-    def map_forward(self, value):
+    def __post_init__(self):
+        if self.tag is not None and len(self.tag) != 4:
+            raise Error(f"An axis tag must consist of 4 characters.")
+
+    def map_forward(self, value: float) -> float:
         if self.mapping:
             return fontTools.varLib.models.piecewiseLinearMap(value, self.mapping)
         return value
 
-    def map_backward(self, value):
+    def map_backward(self, value: float) -> float:
         if self.mapping:
             return fontTools.varLib.models.piecewiseLinearMap(
                 value, {v: k for k, v in self.mapping}
             )
         return value
-
-    # TODO: assert len(tag) == 4?
 
 
 @dataclass
@@ -189,21 +206,56 @@ class Rule:
         if not self.substitutions:
             raise Error(f"Rule '{self.name}': Must have at least one substitution.")
 
+    def applies_to(self, location: Location) -> bool:
+        """Returns true if any condition set applies to the location, false otherwise."""
+
+        return any(c.applies_to(location) for c in self.condition_sets)
+
+    def evaluate(
+        self, location: Location, glyph_names: set[str]
+    ) -> list[tuple[str, str]]:
+        """Applies substitution rules to glyphs at location, returning a list of
+        old to new name tuples.
+
+        Raises an error if a substitution references a glyph not in `glyph_names`.
+        """
+
+        swaps: list[tuple[str, str]] = []
+        if not self.applies_to(location):
+            return swaps
+        for old_name, new_name in self.substitutions.items():
+            if old_name not in glyph_names:
+                raise Error(
+                    f"Rule '{self.name}' references glyph '{old_name}' "
+                    "which does not exist in the glyph set."
+                )
+            if new_name not in glyph_names:
+                raise Error(
+                    f"Rule '{self.name}' references glyph '{new_name}' "
+                    "which does not exist in the glyph set."
+                )
+            swaps.append((old_name, new_name))
+        return swaps
+
 
 @dataclass
 class ConditionSet:
     conditions: list["Condition"]
 
-    def __post_init__(self):
-        if not self.conditions:
-            raise Error("A condition set must have at least one condition.")
+    def applies_to(self, location: Location) -> bool:
+        """Returns true if all conditions in the set apply to the location, false otherwise.
+
+        NOTE: An empty condition set always applies.
+        """
+
+        return all(c.applies_to(location) for c in self.conditions)
 
 
 @dataclass
 class Condition:
     name: str  # Axis name the condition applies to.
-    minimum: Optional[float] = None  # None implies axis.minimum.
-    maximum: Optional[float] = None  # None implies axis.maximum.
+    minimum: Optional[float] = None  # None implies -infinity.
+    maximum: Optional[float] = None  # None implies +infinity.
 
     def __post_init__(self):
         if self.minimum is None and self.maximum is None:
@@ -211,6 +263,18 @@ class Condition:
                 f"Condition '{self.name}': either minimum, maximum or both must be set."
             )
         # TODO: minimum < or <= maximum?
+
+    def applies_to(self, location: Location) -> bool:
+        """Returns true if the condition applies to the location, false otherwise."""
+
+        value = location.get(self.name)
+        if value is None:
+            return False
+        if isinstance(value, tuple):
+            raise Error(f"Cannot evaluate rules for anisotropic locations: {value}")
+        minimum = self.minimum or -math.inf
+        maximum = self.maximum or math.inf
+        return minimum <= value <= maximum
 
 
 ###
