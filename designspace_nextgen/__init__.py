@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Union
 
 import fontTools.misc.plistlib
-import fontTools.varLib.models
-from fontTools.misc import etree as ElementTree
+import fontTools.varLib.models  # type: ignore
+from fontTools.misc import etree as ElementTree  # type: ignore
 
 __version__ = "0.1.0"
 
@@ -260,15 +260,14 @@ class ConditionSet:
 @dataclass(frozen=True)
 class Condition:
     name: str  # Axis name the condition applies to.
-    minimum: Optional[float] = None  # None implies -infinity.
-    maximum: Optional[float] = None  # None implies +infinity.
+    minimum: float = -math.inf
+    maximum: float = math.inf
 
     def __post_init__(self) -> None:
-        if self.minimum is None and self.maximum is None:
+        if self.minimum == -math.inf and self.maximum == math.inf:
             raise Error(
                 f"Condition '{self.name}': either minimum, maximum or both must be set."
             )
-        # TODO: minimum < or <= maximum?
 
     def applies_to(self, location: Location) -> bool:
         """Returns true if the condition applies to the location, false otherwise."""
@@ -278,10 +277,7 @@ class Condition:
             return False
         if isinstance(value, tuple):
             raise Error(f"Cannot evaluate rules for anisotropic locations: {value}")
-        # TODO: Use infinity directly in class init?
-        minimum = self.minimum or -math.inf
-        maximum = self.maximum or math.inf
-        return minimum <= value <= maximum
+        return self.minimum <= value <= self.maximum
 
 
 ###
@@ -414,8 +410,8 @@ def _read_conditions(parent: ElementTree.Element, rule_name: str) -> list[Condit
         conditions.append(
             Condition(
                 name=name,
-                minimum=float(minimum) if minimum is not None else None,
-                maximum=float(maximum) if maximum is not None else None,
+                minimum=float(minimum) if minimum is not None else -math.inf,
+                maximum=float(maximum) if maximum is not None else math.inf,
             )
         )
 
@@ -635,11 +631,11 @@ def _write_rules(
             for condition in condition_set.conditions:
                 condition_element = ElementTree.Element("condition")
                 condition_element.attrib["name"] = condition.name
-                if condition.minimum is not None:
+                if condition.minimum != -math.inf:
                     condition_element.attrib["minimum"] = int_or_float_to_str(
                         condition.minimum
                     )
-                if condition.maximum is not None:
+                if condition.maximum != math.inf:
                     condition_element.attrib["maximum"] = int_or_float_to_str(
                         condition.maximum
                     )
