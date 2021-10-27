@@ -432,6 +432,7 @@ def _read_sources(
         filename = attributes.get("filename")
         family_name = attributes.get("familyname")
         style_name = attributes.get("stylename")
+        # TODO: Determine if sources can or should have anisotropic locations.
         location = _read_location(element, default_location)
         layer_name = attributes.get("layer")
 
