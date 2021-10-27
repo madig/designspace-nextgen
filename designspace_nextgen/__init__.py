@@ -212,10 +212,10 @@ class Rule:
         if not self.substitutions:
             raise Error(f"Rule '{self.name}': Must have at least one substitution.")
 
-    def applies_to(self, location: Location) -> bool:
+    def __contains__(self, location: Location) -> bool:
         """Returns true if any condition set applies to the location, false otherwise."""
 
-        return any(c.applies_to(location) for c in self.condition_sets)
+        return any(location in cs for cs in self.condition_sets)
 
     def evaluate(
         self, location: Location, glyph_names: set[str]
@@ -227,7 +227,7 @@ class Rule:
         """
 
         swaps: list[tuple[str, str]] = []
-        if not self.applies_to(location):
+        if location not in self:
             return swaps
         for old_name, new_name in self.substitutions.items():
             if old_name not in glyph_names:
@@ -248,13 +248,13 @@ class Rule:
 class ConditionSet:
     conditions: list[Condition]
 
-    def applies_to(self, location: Location) -> bool:
+    def __contains__(self, location: Location) -> bool:
         """Returns true if all conditions in the set apply to the location, false otherwise.
 
         NOTE: An empty condition set always applies.
         """
 
-        return all(c.applies_to(location) for c in self.conditions)
+        return all(location in c for c in self.conditions)
 
 
 @dataclass(frozen=True)
@@ -269,7 +269,7 @@ class Condition:
                 f"Condition '{self.name}': either minimum, maximum or both must be set."
             )
 
-    def applies_to(self, location: Location) -> bool:
+    def __contains__(self, location: Location) -> bool:
         """Returns true if the condition applies to the location, false otherwise."""
 
         value = location.get(self.name)
