@@ -288,7 +288,7 @@ XML_NS = "{http://www.w3.org/XML/1998/namespace}"
 XML_LANG = XML_NS + "lang"
 
 
-def _read_axes(tree: ElementTree.Element) -> tuple[list[Axis], Mapping[str, float]]:
+def _read_axes(tree: ElementTree.Element) -> tuple[list[Axis], dict[str, float]]:
     stray_map_element = tree.find(".axes/map")
     if stray_map_element:
         raise Error(
