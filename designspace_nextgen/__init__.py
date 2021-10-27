@@ -610,21 +610,6 @@ def _write_rules(
         rules_element.attrib["processing"] = "last"
 
     for rule in rules:
-        if not rule.condition_sets:
-            raise Error(f"Rule '{rule.name}' must have at least one condition set.")
-        if not all(s.conditions for s in rule.condition_sets):
-            raise Error(
-                f"Rule '{rule.name}': all condition sets must have at least one condition."
-            )
-        if any(
-            c.minimum is None and c.maximum is None
-            for s in rule.condition_sets
-            for c in s.conditions
-        ):
-            raise Error(
-                f"Rule '{rule.name}': conditions must have either minimum, maximum or both set."
-            )
-
         rule_element = ElementTree.Element("rule")
         rule_element.attrib["name"] = rule.name
         for condition_set in rule.condition_sets:
