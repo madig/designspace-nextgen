@@ -5,7 +5,7 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Union
 
 import fontTools.misc.plistlib
 import fontTools.varLib.models  # type: ignore
@@ -35,7 +35,7 @@ class Document:
     rules: list[Rule] = field(default_factory=list)
     sources: list[Source] = field(default_factory=list)
     instances: list[Instance] = field(default_factory=list)
-    path: Optional[Path] = None
+    path: Path | None = None
     format_version: float = 4
     format_version_minor: float = 1
     rules_processing_last: bool = field(default=False)
@@ -44,9 +44,9 @@ class Document:
     def __post_init__(self) -> None:
         if not self.axes:
             raise Error(f"A Designspace must have at least one axis.")
-        source_filenames: set[Path] = set(
+        source_filenames: set[Path] = {
             s.filename for s in self.sources if s.filename is not None
-        )
+        }
         for instance in self.instances:
             if instance.filename is not None and instance.filename in source_filenames:
                 raise Error(
@@ -54,7 +54,7 @@ class Document:
                 )
 
     @classmethod
-    def from_bytes(cls, content: bytes, path: Optional[Path] = None) -> Document:
+    def from_bytes(cls, content: bytes, path: Path | None = None) -> Document:
         root = ElementTree.fromstring(content)
 
         axes, default_location = _read_axes(root)
@@ -83,7 +83,7 @@ class Document:
 
         return document
 
-    def save(self, path: Optional[os.PathLike[str]] = None) -> None:
+    def save(self, path: os.PathLike[str] | None = None) -> None:
         if path is None:
             if self.path is None:
                 raise Error("Document has no known path and no path was given.")
@@ -116,7 +116,7 @@ class Document:
     def default_design_location(self) -> Location:
         return {axis.name: axis.map_forward(axis.default) for axis in self.axes}
 
-    def default_source(self) -> Optional[Source]:
+    def default_source(self) -> Source | None:
         default_location = self.default_design_location()
         default_sources = [s for s in self.sources if s.location == default_location]
         if not default_sources:
@@ -149,7 +149,7 @@ class Axis:
     minimum: float
     default: float
     maximum: float
-    tag: Optional[str]  # opentype tag for this axis
+    tag: str | None  # opentype tag for this axis
     label_names: dict[str, str] = field(default_factory=dict)
     hidden: bool = False
     mapping: dict[float, float] = field(default_factory=dict)
@@ -174,25 +174,25 @@ class Axis:
 @dataclass(frozen=True)
 class Source:
     name: str
-    filename: Optional[Path] = None
+    filename: Path | None = None
     location: Location = field(default_factory=dict)
-    font: Optional[Any] = None
-    layer_name: Optional[str] = None
-    family_name: Optional[str] = None
-    style_name: Optional[str] = None
+    font: Any | None = None
+    layer_name: str | None = None
+    family_name: str | None = None
+    style_name: str | None = None
 
 
 @dataclass(frozen=True)
 class Instance:
     name: str
-    filename: Optional[Path] = None
+    filename: Path | None = None
     location: Location = field(default_factory=dict)
-    font: Optional[Any] = None
-    family_name: Optional[str] = None
-    style_name: Optional[str] = None
-    postscript_font_name: Optional[str] = None
-    style_map_family_name: Optional[str] = None
-    style_map_style_name: Optional[str] = None
+    font: Any | None = None
+    family_name: str | None = None
+    style_name: str | None = None
+    postscript_font_name: str | None = None
+    style_map_family_name: str | None = None
+    style_map_style_name: str | None = None
     localised_style_name: dict[str, str] = field(default_factory=dict)
     localised_family_name: dict[str, str] = field(default_factory=dict)
     localised_style_map_style_name: dict[str, str] = field(default_factory=dict)
@@ -203,7 +203,7 @@ class Instance:
 @dataclass(frozen=True)
 class Rule:
     name: str
-    condition_sets: list["ConditionSet"]
+    condition_sets: list[ConditionSet]
     substitutions: dict[str, str]
 
     def __post_init__(self) -> None:
@@ -246,7 +246,7 @@ class Rule:
 
 @dataclass(frozen=True)
 class ConditionSet:
-    conditions: list["Condition"]
+    conditions: list[Condition]
 
     def applies_to(self, location: Location) -> bool:
         """Returns true if all conditions in the set apply to the location, false otherwise.
