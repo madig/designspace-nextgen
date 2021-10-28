@@ -64,23 +64,17 @@ def test_parse_rules() -> None:
         <rules processing="last">
             <rule name="BRACKET.CYR">
                 <conditionset>
-                    <condition name="Italic" minimum="0.1" maximum="1"/>
+                    <condition name="A" minimum="0.1" maximum="1"/>
                 </conditionset>
-                <sub name="ghe.loclSRB" with="ghe.ital.loclSRB"/>
-                <sub name="ghe.loclMKD" with="ghe.ital.loclMKD"/>
-                <sub name="de.loclMKDSRB" with="de.ital.loclMKDSRB"/>
-                <sub name="pe.loclMKDSRB" with="pe.ital.loclMKDSRB"/>
-                <sub name="te.loclMKDSRB" with="te.ital.loclMKDSRB"/>
-                <sub name="gje.loclMKD" with="gje.ital.loclMKD"/>
-                <sub name="sha.loclMKDSRB" with="sha.ital.loclMKDSRB"/>
+                <sub name="a" with="a.alt"/>
             </rule>
                 <rule name="BRACKET.116.185">
                 <conditionset>
-                    <condition name="Weight" minimum="116" maximum="185"/>
-                    <condition name="Width" minimum="75" maximum="97.5"/>
+                    <condition name="B" minimum="116" maximum="185"/>
+                    <condition name="C" minimum="75" maximum="97.5"/>
                 </conditionset>
-                <sub name="cent" with="cent.BRACKET.130"/>
-                <sub name="dollar" with="dollar.BRACKET.130"/>
+                <sub name="cent" with="cent.alt"/>
+                <sub name="dollar" with="dollar.alt"/>
             </rule>
         </rules>
     </designspace>
@@ -93,24 +87,18 @@ def test_parse_rules() -> None:
     assert rules == [
         Rule(
             name="BRACKET.CYR",
-            condition_sets=[ConditionSet(conditions={"Italic": Range(0.1, 1)})],
-            substitutions={
-                "ghe.loclSRB": "ghe.ital.loclSRB",
-                "ghe.loclMKD": "ghe.ital.loclMKD",
-                "de.loclMKDSRB": "de.ital.loclMKDSRB",
-                "pe.loclMKDSRB": "pe.ital.loclMKDSRB",
-                "te.loclMKDSRB": "te.ital.loclMKDSRB",
-                "gje.loclMKD": "gje.ital.loclMKD",
-                "sha.loclMKDSRB": "sha.ital.loclMKDSRB",
-            },
+            condition_sets=[ConditionSet(conditions={"A": Range(0.1, 1)})],
+            substitutions={"a": "a.alt"},
         ),
         Rule(
             name="BRACKET.116.185",
             condition_sets=[
-                ConditionSet(
-                    conditions={"Weight": Range(116, 185), "Width": Range(75, 97.5)}
-                ),
+                ConditionSet(conditions={"B": Range(116, 185), "C": Range(75, 97.5)}),
             ],
-            substitutions={"cent": "cent.BRACKET.130", "dollar": "dollar.BRACKET.130"},
+            substitutions={"cent": "cent.alt", "dollar": "dollar.alt"},
         ),
     ]
+
+    assert rules[0].evaluate({"C": 100, "A": 0}, {"a", "a.alt"}) == []
+    assert rules[0].evaluate({"A": 0.1}, {"a", "a.alt"}) == [("a", "a.alt")]
+    assert rules[0].evaluate({"b": 400, "A": 1}, {"a", "a.alt"}) == [("a", "a.alt")]
