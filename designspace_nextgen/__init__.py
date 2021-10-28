@@ -36,8 +36,8 @@ class Document:
     sources: list[Source] = field(default_factory=list)
     instances: list[Instance] = field(default_factory=list)
     path: Path | None = None
-    format_version: float = 4
-    format_version_minor: float = 1
+    format_version: int = 4
+    format_version_minor: int = 1
     rules_processing_last: bool = field(default=False)
     lib: dict[str, Any] = field(default_factory=dict)
 
