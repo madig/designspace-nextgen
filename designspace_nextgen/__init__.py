@@ -384,7 +384,7 @@ def _read_rules(tree: ElementTree.Element) -> tuple[list[Rule], bool]:
         for conditionset_element in element.findall(".conditionset"):
             condition_sets.append(_read_conditionset(conditionset_element, name))
         if not condition_sets:
-            raise Error(f"Rule '{name}' needs at least one condition.")
+            raise Error(f"Rule '{name}' needs at least one condition set.")
 
         substitutions = {
             sub_element.attrib["name"]: sub_element.attrib["with"]
