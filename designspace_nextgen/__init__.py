@@ -202,6 +202,8 @@ class Instance:
 
 @dataclass(frozen=True)
 class Rule:
+    __slots__ = "name", "condition_sets", "substitutions"
+
     name: str
     condition_sets: list[ConditionSet]
     substitutions: dict[str, str]
@@ -246,7 +248,16 @@ class Rule:
 
 @dataclass(frozen=True)
 class ConditionSet:
-    conditions: list[Condition]
+    __slots__ = "conditions"
+
+    conditions: Mapping[str, Range]
+
+    def __post_init__(self) -> None:
+        for name, condition in self.conditions.items():
+            if condition.start == -math.inf and condition.end == math.inf:
+                raise Error(
+                    f"Condition '{name}': either minimum, maximum or both must be set."
+                )
 
     def __contains__(self, location: Location) -> bool:
         """Returns true if all conditions in the set apply to the location, false otherwise.
@@ -254,30 +265,29 @@ class ConditionSet:
         NOTE: An empty condition set always applies.
         """
 
-        return all(location in c for c in self.conditions)
+        for name, condition in self.conditions.items():
+            location_value = location.get(name)
+            if location_value is None:
+                return False
+            if isinstance(location_value, tuple):
+                raise Error(f"Cannot evaluate rules for anisotropic location: {name}")
+            if location_value not in condition:
+                return False
+        return True
 
 
 @dataclass(frozen=True)
-class Condition:
-    name: str  # Axis name the condition applies to.
-    minimum: float = -math.inf
-    maximum: float = math.inf
+class Range:
+    __slots__ = "start", "end"
 
-    def __post_init__(self) -> None:
-        if self.minimum == -math.inf and self.maximum == math.inf:
-            raise Error(
-                f"Condition '{self.name}': either minimum, maximum or both must be set."
-            )
+    start: float
+    end: float
 
-    def __contains__(self, location: Location) -> bool:
-        """Returns true if the condition applies to the location, false otherwise."""
-
-        value = location.get(self.name)
-        if value is None:
-            return False
-        if isinstance(value, tuple):
-            raise Error(f"Cannot evaluate rules for anisotropic locations: {value}")
-        return self.minimum <= value <= self.maximum
+    def __contains__(self, value: float | Range) -> bool:
+        if isinstance(value, Range):
+            start, end = sorted((value.start, value.end))
+            return self.start <= start <= self.end and self.start <= end <= self.end
+        return self.start <= value <= self.end
 
 
 ###
@@ -364,16 +374,15 @@ def _read_rules(tree: ElementTree.Element) -> tuple[list[Rule], bool]:
                 f"Rule at index {index} needs a name so I can properly error at you."
             )
 
-        # read any stray conditions outside a condition set
+        # Read any stray conditions outside a conditionset.
         condition_sets: list[ConditionSet] = []
-        conditions_external = _read_conditions(element, name)
-        if conditions_external:
-            condition_sets.append(ConditionSet(conditions_external))
-        # read the conditionsets
+        conditions_external = _read_conditionset(element, name)
+        if conditions_external.conditions:
+            condition_sets.append(conditions_external)
+
+        # Read the actual conditionsets.
         for conditionset_element in element.findall(".conditionset"):
-            condition_sets.append(
-                ConditionSet(_read_conditions(conditionset_element, name))
-            )
+            condition_sets.append(_read_conditionset(conditionset_element, name))
         if not condition_sets:
             raise Error(f"Rule '{name}' needs at least one condition.")
 
@@ -389,8 +398,8 @@ def _read_rules(tree: ElementTree.Element) -> tuple[list[Rule], bool]:
     return rules, rules_processing_last
 
 
-def _read_conditions(parent: ElementTree.Element, rule_name: str) -> list[Condition]:
-    conditions: list[Condition] = []
+def _read_conditionset(parent: ElementTree.Element, rule_name: str) -> ConditionSet:
+    conditionset: dict[str, Range] = {}
 
     for element in parent.findall(".condition"):
         attributes = element.attrib
@@ -400,6 +409,10 @@ def _read_conditions(parent: ElementTree.Element, rule_name: str) -> list[Condit
             raise Error(
                 f"Rule '{rule_name}': Conditions must have names with the axis name they apply to."
             )
+        if name in conditionset:
+            raise Error(
+                f"Rule '{rule_name}': Condition names must be unique, found duplicate for {name}."
+            )
         minimum = attributes.get("minimum")
         maximum = attributes.get("maximum")
         if minimum is None and maximum is None:
@@ -407,15 +420,12 @@ def _read_conditions(parent: ElementTree.Element, rule_name: str) -> list[Condit
                 f"Rule '{rule_name}': Conditions must have either a minimum, a maximum or both."
             )
 
-        conditions.append(
-            Condition(
-                name=name,
-                minimum=float(minimum) if minimum is not None else -math.inf,
-                maximum=float(maximum) if maximum is not None else math.inf,
-            )
+        conditionset[name] = Range(
+            float(minimum) if minimum is not None else -math.inf,
+            float(maximum) if maximum is not None else math.inf,
         )
 
-    return conditions
+    return ConditionSet(conditions=conditionset)
 
 
 def _read_sources(

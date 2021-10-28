@@ -1,9 +1,10 @@
 from fontTools.misc import etree as ElementTree  # type: ignore
 
-from designspace_nextgen import Condition, ConditionSet, Rule, _read_rules
+from designspace_nextgen import ConditionSet, Range, Rule
+from designspace_nextgen import _read_rules  # type: ignore
 
 
-def test_always_substitute() -> None:
+def test_empty_conditionset() -> None:
     xml = """
     <designspace>
         <rules>
@@ -22,12 +23,39 @@ def test_always_substitute() -> None:
     assert rules == [
         Rule(
             name="always_apply",
-            condition_sets=[ConditionSet(conditions=[])],
+            condition_sets=[ConditionSet(conditions={})],
             substitutions={"a": "a.alt"},
         )
     ]
 
     assert rules[0].evaluate({"Weight": 400}, {"a", "a.alt"}) == [("a", "a.alt")]
+
+
+def test_stray_conditionset() -> None:
+    xml = """
+    <designspace>
+        <rules>
+            <rule name="always_apply">
+                <condition name="Italic" minimum="0.1" maximum="1"/>
+                <sub name="a" with="a.alt"/>
+            </rule>
+        </rules>
+    </designspace>
+    """
+
+    root = ElementTree.fromstring(xml)
+    rules, rules_processing_last = _read_rules(root)
+
+    assert not rules_processing_last
+    assert rules == [
+        Rule(
+            name="always_apply",
+            condition_sets=[ConditionSet(conditions={"Italic": Range(0.1, 1)})],
+            substitutions={"a": "a.alt"},
+        )
+    ]
+
+    assert rules[0].evaluate({"Italic": 1}, {"a", "a.alt"}) == [("a", "a.alt")]
 
 
 def test_parse_rules() -> None:
@@ -65,11 +93,7 @@ def test_parse_rules() -> None:
     assert rules == [
         Rule(
             name="BRACKET.CYR",
-            condition_sets=[
-                ConditionSet(
-                    conditions=[Condition(name="Italic", minimum=0.1, maximum=1.0)]
-                )
-            ],
+            condition_sets=[ConditionSet(conditions={"Italic": Range(0.1, 1)})],
             substitutions={
                 "ghe.loclSRB": "ghe.ital.loclSRB",
                 "ghe.loclMKD": "ghe.ital.loclMKD",
@@ -84,11 +108,8 @@ def test_parse_rules() -> None:
             name="BRACKET.116.185",
             condition_sets=[
                 ConditionSet(
-                    conditions=[
-                        Condition(name="Weight", minimum=116.0, maximum=185.0),
-                        Condition(name="Width", minimum=75.0, maximum=97.5),
-                    ]
-                )
+                    conditions={"Weight": Range(116, 185), "Width": Range(75, 97.5)}
+                ),
             ],
             substitutions={"cent": "cent.BRACKET.130", "dollar": "dollar.BRACKET.130"},
         ),
