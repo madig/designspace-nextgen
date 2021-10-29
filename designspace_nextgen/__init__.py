@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 import math
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Union
 
 import fontTools.misc.plistlib
 import fontTools.varLib.models  # type: ignore
+from attr import field, frozen
 from fontTools.misc import etree as ElementTree  # type: ignore
 
 __version__ = "0.1.0"
@@ -25,21 +25,24 @@ PiecewiseRemap = Callable[[float, Mapping[float, float]], float]
 # for the default "en" ones? Simplifies writing?
 
 
+@frozen
 class Error(Exception):
     """Base exception."""
 
+    msg: str
 
-@dataclass(frozen=True)
+
+@frozen
 class Document:
     axes: list[Axis]
-    rules: list[Rule] = field(default_factory=list)
-    sources: list[Source] = field(default_factory=list)
-    instances: list[Instance] = field(default_factory=list)
+    rules: list[Rule] = field(factory=list)
+    sources: list[Source] = field(factory=list)
+    instances: list[Instance] = field(factory=list)
     path: Path | None = None
     format_version: int = 4
     format_version_minor: int = 1
     rules_processing_last: bool = field(default=False)
-    lib: dict[str, Any] = field(default_factory=dict)
+    lib: dict[str, Any] = field(factory=dict)
 
     def __post_init__(self) -> None:
         if not self.axes:
@@ -143,16 +146,16 @@ class Document:
         return swaps
 
 
-@dataclass(frozen=True)
+@frozen
 class Axis:
     name: str  # name of the axis used in locations
     minimum: float
     default: float
     maximum: float
     tag: str | None  # opentype tag for this axis
-    label_names: dict[str, str] = field(default_factory=dict)
+    label_names: dict[str, str] = field(factory=dict)
     hidden: bool = False
-    mapping: dict[float, float] = field(default_factory=dict)
+    mapping: dict[float, float] = field(factory=dict)
 
     def __post_init__(self) -> None:
         if self.tag is not None and len(self.tag) != 4:
@@ -171,39 +174,37 @@ class Axis:
         return value
 
 
-@dataclass(frozen=True)
+@frozen
 class Source:
     name: str
     filename: Path | None = None
-    location: Location = field(default_factory=dict)
+    location: Location = field(factory=dict)
     font: Any | None = None
     layer_name: str | None = None
     family_name: str | None = None
     style_name: str | None = None
 
 
-@dataclass(frozen=True)
+@frozen
 class Instance:
     name: str
     filename: Path | None = None
-    location: Location = field(default_factory=dict)
+    location: Location = field(factory=dict)
     font: Any | None = None
     family_name: str | None = None
     style_name: str | None = None
     postscript_font_name: str | None = None
     style_map_family_name: str | None = None
     style_map_style_name: str | None = None
-    localised_style_name: dict[str, str] = field(default_factory=dict)
-    localised_family_name: dict[str, str] = field(default_factory=dict)
-    localised_style_map_style_name: dict[str, str] = field(default_factory=dict)
-    localised_style_map_family_name: dict[str, str] = field(default_factory=dict)
-    lib: dict[str, Any] = field(default_factory=dict)
+    localised_style_name: dict[str, str] = field(factory=dict)
+    localised_family_name: dict[str, str] = field(factory=dict)
+    localised_style_map_style_name: dict[str, str] = field(factory=dict)
+    localised_style_map_family_name: dict[str, str] = field(factory=dict)
+    lib: dict[str, Any] = field(factory=dict)
 
 
-@dataclass(frozen=True)
+@frozen
 class Rule:
-    __slots__ = "name", "condition_sets", "substitutions"
-
     name: str
     condition_sets: list[ConditionSet]
     substitutions: dict[str, str]
@@ -246,10 +247,8 @@ class Rule:
         return swaps
 
 
-@dataclass(frozen=True)
+@frozen
 class ConditionSet:
-    __slots__ = "conditions"
-
     conditions: Mapping[str, Range]
 
     def __post_init__(self) -> None:
@@ -276,10 +275,8 @@ class ConditionSet:
         return True
 
 
-@dataclass(frozen=True)
+@frozen
 class Range:
-    __slots__ = "start", "end"
-
     start: float
     end: float
 
