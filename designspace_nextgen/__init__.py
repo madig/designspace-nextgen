@@ -4,7 +4,7 @@ import logging
 import math
 import os
 from pathlib import Path
-from typing import Any, Callable, Mapping, Union
+from typing import Any, Callable, Dict, Mapping, Tuple, Union
 
 import fontTools.misc.plistlib
 import fontTools.varLib.models  # type: ignore
@@ -15,7 +15,7 @@ __version__ = "0.1.0"
 
 LOGGER = logging.getLogger(__name__)
 
-Location = dict[str, Union[float, tuple[float, float]]]
+Location = Dict[str, Union[float, Tuple[float, float]]]
 # IsotropicLocation from axes?
 
 # TODO: Remove after fontTools.varLib.models is typed.
@@ -308,7 +308,7 @@ def _read_axes(tree: ElementTree.Element) -> tuple[list[Axis], dict[str, float]]
     for index, element in enumerate(tree.findall(".axes/axis")):
         attributes = element.attrib
 
-        name = attributes.get("name")
+        name: str | None = attributes.get("name")
         if name is None:
             raise Error(f"Axis at index {index} needs a name.")
         tag = attributes.get("tag")
@@ -621,16 +621,16 @@ def _write_rules(
         rule_element.attrib["name"] = rule.name
         for condition_set in rule.condition_sets:
             conditionset_element = ElementTree.Element("conditionset")
-            for condition in condition_set.conditions:
+            for name, condition in condition_set.conditions.items():
                 condition_element = ElementTree.Element("condition")
-                condition_element.attrib["name"] = condition.name
-                if condition.minimum != -math.inf:
+                condition_element.attrib["name"] = name
+                if condition.start != -math.inf:
                     condition_element.attrib["minimum"] = int_or_float_to_str(
-                        condition.minimum
+                        condition.start
                     )
-                if condition.maximum != math.inf:
+                if condition.end != math.inf:
                     condition_element.attrib["maximum"] = int_or_float_to_str(
-                        condition.maximum
+                        condition.end
                     )
                 conditionset_element.append(condition_element)
             rule_element.append(conditionset_element)
