@@ -269,7 +269,9 @@ class ConditionSet:
             if location_value is None:
                 return False
             if isinstance(location_value, tuple):
-                raise Error(f"Cannot evaluate rules for anisotropic location: {name}")
+                # For anisotropic locations, use the x-value.
+                # https://github.com/fonttools/fonttools/pull/2436#issuecomment-956324046
+                location_value = location_value[0]
             if location_value not in condition:
                 return False
         return True
