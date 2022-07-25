@@ -116,6 +116,11 @@ class Document:
         except Exception as e:
             raise Error(f"Failed to write Designspace to path {path}: {str(e)}")
 
+    def path_for_relative(self, path: os.PathLike[str]) -> Path:
+        if self.path is None:
+            raise Error("Document has no known path.")
+        return self.path.parent / path
+
     def default_design_location(self) -> Location:
         return {axis.name: axis.map_forward(axis.default) for axis in self.axes}
 
